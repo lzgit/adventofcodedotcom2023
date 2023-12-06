@@ -22,3 +22,4 @@ zoneight234
         public void PuzzleTwoTest(string input, string output) => That(GetPuzzle(input).GetPuzzleTwoSolution(), Is.EqualTo(output));
     }
 }
+//12 red cubes, 13 green cubes, and 14 blue

@@ -1,5 +1,4 @@
-﻿using System.Threading;
-using static System.Char;
+﻿using static System.Char;
 
 namespace Puzzles;
 
@@ -9,7 +8,8 @@ public class Day01(string input) : DailyPuzzleBase(input)
     {
         return Input
             .Split(Environment.NewLine)
-            .Sum(l => int.Parse(l.ToCharArray().First(IsDigit).ToString()) * 10 + int.Parse(l.ToCharArray().Last(IsDigit).ToString()))
+            .Sum(l => int.Parse(l.ToCharArray().First(IsDigit).ToString()) * 10 +
+                      int.Parse(l.ToCharArray().Last(IsDigit).ToString()))
             .ToString();
     }
 
@@ -38,17 +38,17 @@ public class Day01(string input) : DailyPuzzleBase(input)
         foreach (var line in lines)
         {
             var firstIndexOfDigits = digits
-                    .Select(d => new { Index = line.IndexOf(d.Key, StringComparison.Ordinal), Number = d.Value })
-                    .Where(dwp => dwp.Index > -1)
-                    .OrderBy(dwp => dwp.Index)
-                    .First();
-            
+                .Select(d => new { Index = line.IndexOf(d.Key, StringComparison.Ordinal), Number = d.Value })
+                .Where(dwp => dwp.Index > -1)
+                .OrderBy(dwp => dwp.Index)
+                .First();
+
             var lastIndexOfDigits = digits
-                    .Select(d => new { Index = line.LastIndexOf(d.Key, StringComparison.Ordinal), Number = d.Value })
-                    .Where(dwp => dwp.Index > -1)
-                    .OrderBy(dwp => dwp.Index)
-                    .Last();
-            
+                .Select(d => new { Index = line.LastIndexOf(d.Key, StringComparison.Ordinal), Number = d.Value })
+                .Where(dwp => dwp.Index > -1)
+                .OrderBy(dwp => dwp.Index)
+                .Last();
+
             var number = firstIndexOfDigits.Number * 10 + lastIndexOfDigits.Number;
             sum += number;
         }
