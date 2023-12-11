@@ -6,7 +6,7 @@ namespace Puzzles
     {
         static void Main(string[] args)
         {
-            var dayNumber = 10;
+            var dayNumber = 11;
             //var dayNumber = DateTime.Now.Day;
             //if (args.Length > 0)
             //    dayNumber = int.Parse(args[0]);
