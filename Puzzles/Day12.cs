@@ -1,41 +1,35 @@
-﻿using System.Diagnostics;
-
-namespace Puzzles;
+﻿namespace Puzzles;
 
 public class Day12(string input) : DailyPuzzleBase(input)
 {
     public override string GetPuzzleOneSolution()
     {
-        return GetSpringMap(1).Rows.Select(mapRow =>
-        {
-            var arrangementCount = GetArrangementCount(mapRow.MapRow, mapRow.DamagedPatterns, -1, -1);
-            return arrangementCount;
-        }).Sum().ToString();
+        return GetSpringMap().Rows
+            .Select((mapRow, index) => GetArrangementCount(mapRow.MapRow, index, mapRow.DamagedPatterns, -1, -1, 0))
+            .Sum()
+            .ToString();
     }
 
     public override string GetPuzzleTwoSolution()
     {
-        return GetSpringMap(5).Rows.Select((mapRow, index) =>
-        {
-            Debug.WriteLine(index);
-            var arrangementCount = GetArrangementCount(mapRow.MapRow, mapRow.DamagedPatterns, -1, -1);
-            return arrangementCount;
-        }).Sum().ToString();
+        return GetSpringMap(5).Rows
+            .Select((mapRow, index) => GetArrangementCount(mapRow.MapRow, index, mapRow.DamagedPatterns, -1, -1, 0))
+            .Sum()
+            .ToString();
     }
 
-    private int GetArrangementCount(string row, List<int> damagedPatterns, int patternMatchStartIndex, int damagePatternIndex)
+    private readonly Dictionary<string, long> cache = new();
+
+    private long GetArrangementCount(string row, int rowIndex, List<int> damagedPatterns, int patternMatchStartIndex, int damagePatternIndex, int sumOfPreviousDamageCount)
     {
         var isPatternMatches = IsPatternMatches(row, damagedPatterns, patternMatchStartIndex, damagePatternIndex);
 
-        var updatedRow = row;
         if (isPatternMatches && damagePatternIndex != -1)
-            updatedRow = row.Substring(0, patternMatchStartIndex)
-                         + string.Join("", Enumerable.Repeat('#', damagedPatterns[damagePatternIndex]))
-                         + row.Substring(patternMatchStartIndex + damagedPatterns[damagePatternIndex]);
+            sumOfPreviousDamageCount += damagedPatterns[damagePatternIndex];
 
         if (damagePatternIndex + 1 == damagedPatterns.Count)
         {
-            if (isPatternMatches && !(updatedRow.Count(c => c == '#') > damagedPatterns.Sum()))
+            if (isPatternMatches && !(sumOfPreviousDamageCount + row.Substring(patternMatchStartIndex + damagedPatterns[damagePatternIndex]).Count(c => c == '#') > damagedPatterns.Sum()))
                 return 1;
 
             return 0;
@@ -44,26 +38,33 @@ public class Day12(string input) : DailyPuzzleBase(input)
         if (!isPatternMatches && damagePatternIndex != -1)
             return 0;
 
-        var totalArrangementCount = 0;
+        long totalArrangementCount = 0;
         patternMatchStartIndex += damagePatternIndex == -1 ? 1 : damagedPatterns[damagePatternIndex] + 1;
         damagePatternIndex += 1;
 
-        var sumOfTheRestOfTheDamagePatterns = damagedPatterns.Where((dp, index) => index >= damagePatternIndex + 1).Sum(dp => dp + 1) - 1;
+        var sumOfTheRestOfTheDamagePatterns = damagedPatterns.Where((_, i) => i >= damagePatternIndex + 1).Sum(dp => dp + 1) - 1;
         do
         {
-            var arrangementCount = GetArrangementCount(updatedRow, damagedPatterns, patternMatchStartIndex, damagePatternIndex);
+            var key = $"{rowIndex}-{row}-{damagedPatterns}-{patternMatchStartIndex}-{damagePatternIndex}-{sumOfPreviousDamageCount}";
+            if(!cache.TryGetValue(key, out long arrangementCount))
+                arrangementCount = cache[key] = GetArrangementCount(row, rowIndex, damagedPatterns, patternMatchStartIndex, damagePatternIndex, sumOfPreviousDamageCount);
+
             totalArrangementCount += arrangementCount;
 
             patternMatchStartIndex++;
-            for (int i = patternMatchStartIndex; i < updatedRow.Length; i++)
+
+            for (int i = patternMatchStartIndex; i < row.Length; i++)
             {
-                if (updatedRow[i - 1] != '#' && updatedRow[i] != '.')
+                if (row[patternMatchStartIndex - 1] == '#')
+                    sumOfPreviousDamageCount++;
+
+                if (row[i - 1] != '#' && row[i] != '.')
                     break;
 
                 patternMatchStartIndex++;
             }
 
-        } while (patternMatchStartIndex + sumOfTheRestOfTheDamagePatterns <= updatedRow.Length);
+        } while (patternMatchStartIndex + sumOfTheRestOfTheDamagePatterns <= row.Length);
 
         return totalArrangementCount;
     }
@@ -93,29 +94,26 @@ public class Day12(string input) : DailyPuzzleBase(input)
         return true;
     }
 
-    private SpringMap GetSpringMap(int unfoldMultiplier)
+    private SpringMap GetSpringMap(int unfoldMultiplier = 1)
     {
-        SpringMap map = new SpringMap();
-        map.Rows = Input
+        return new SpringMap(Input
             .Split(Environment.NewLine)
             .Select(l => new SpringMapRow
-            {
-                MapRow = string.Join("?", Enumerable.Repeat(l.Split(' ').First().Trim(), unfoldMultiplier)),
-                DamagedPatterns = Enumerable.Repeat(l.Split(' ').Last().Trim().Split(',').Select(n => int.Parse(n.Trim())).ToList(), unfoldMultiplier).SelectMany(dp => dp).ToList()
-            })
-            .ToList();
-
-        return map;
+            (
+                string.Join("?", Enumerable.Repeat(l.Split(' ').First().Trim(), unfoldMultiplier)),
+                Enumerable.Repeat(l.Split(' ').Last().Trim().Split(',').Select(n => int.Parse(n.Trim())).ToList(), unfoldMultiplier).SelectMany(dp => dp).ToList()
+            ))
+            .ToList());
     }
 
-    public class SpringMap
+    public class SpringMap(List<SpringMapRow> rows)
     {
-        public List<SpringMapRow> Rows { get; set; }
+        public List<SpringMapRow> Rows { get; set; } = rows;
     }
 
-    public class SpringMapRow
+    public class SpringMapRow(string mapRow, List<int> damagedPatterns)
     {
-        public string MapRow { get; set; }
-        public List<int> DamagedPatterns { get; set; } = new();
+        public string MapRow { get; set; } = mapRow;
+        public List<int> DamagedPatterns { get; set; } = damagedPatterns;
     }
 }
