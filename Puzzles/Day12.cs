@@ -1,12 +1,26 @@
-﻿namespace Puzzles;
+﻿using System.Diagnostics;
+
+namespace Puzzles;
 
 public class Day12(string input) : DailyPuzzleBase(input)
 {
     public override string GetPuzzleOneSolution()
     {
-        var springMap = GetSpringMap();
-        
-        return springMap.Rows.Select(mapRow => GetArrangementCount(mapRow.MapRow, mapRow.DamagedPatterns, -1, -1)).Sum().ToString();
+        return GetSpringMap(1).Rows.Select(mapRow =>
+        {
+            var arrangementCount = GetArrangementCount(mapRow.MapRow, mapRow.DamagedPatterns, -1, -1);
+            return arrangementCount;
+        }).Sum().ToString();
+    }
+
+    public override string GetPuzzleTwoSolution()
+    {
+        return GetSpringMap(5).Rows.Select((mapRow, index) =>
+        {
+            Debug.WriteLine(index);
+            var arrangementCount = GetArrangementCount(mapRow.MapRow, mapRow.DamagedPatterns, -1, -1);
+            return arrangementCount;
+        }).Sum().ToString();
     }
 
     private int GetArrangementCount(string row, List<int> damagedPatterns, int patternMatchStartIndex, int damagePatternIndex)
@@ -29,11 +43,12 @@ public class Day12(string input) : DailyPuzzleBase(input)
 
         if (!isPatternMatches && damagePatternIndex != -1)
             return 0;
-        
+
         var totalArrangementCount = 0;
         patternMatchStartIndex += damagePatternIndex == -1 ? 1 : damagedPatterns[damagePatternIndex] + 1;
         damagePatternIndex += 1;
 
+        var sumOfTheRestOfTheDamagePatterns = damagedPatterns.Where((dp, index) => index >= damagePatternIndex + 1).Sum(dp => dp + 1) - 1;
         do
         {
             var arrangementCount = GetArrangementCount(updatedRow, damagedPatterns, patternMatchStartIndex, damagePatternIndex);
@@ -48,9 +63,7 @@ public class Day12(string input) : DailyPuzzleBase(input)
                 patternMatchStartIndex++;
             }
 
-        } while (patternMatchStartIndex + damagedPatterns[damagePatternIndex] <= updatedRow.Length);
-        
-        //ToDo: Optimalization can be done via adding up the damages + 1, as it does not fit !
+        } while (patternMatchStartIndex + sumOfTheRestOfTheDamagePatterns <= updatedRow.Length);
 
         return totalArrangementCount;
     }
@@ -80,20 +93,15 @@ public class Day12(string input) : DailyPuzzleBase(input)
         return true;
     }
 
-    public override string GetPuzzleTwoSolution()
-    {
-        return "";
-    }
-
-    private SpringMap GetSpringMap()
+    private SpringMap GetSpringMap(int unfoldMultiplier)
     {
         SpringMap map = new SpringMap();
         map.Rows = Input
             .Split(Environment.NewLine)
             .Select(l => new SpringMapRow
             {
-                MapRow = l.Split(' ').First().Trim(),
-                DamagedPatterns = l.Split(' ').Last().Trim().Split(',').Select(n => int.Parse(n.Trim())).ToList()
+                MapRow = string.Join("?", Enumerable.Repeat(l.Split(' ').First().Trim(), unfoldMultiplier)),
+                DamagedPatterns = Enumerable.Repeat(l.Split(' ').Last().Trim().Split(',').Select(n => int.Parse(n.Trim())).ToList(), unfoldMultiplier).SelectMany(dp => dp).ToList()
             })
             .ToList();
 
