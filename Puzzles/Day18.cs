@@ -1,93 +1,117 @@
-﻿using System.Diagnostics;
-
-namespace Puzzles;
+﻿namespace Puzzles;
 
 public class Day18(string input) : DailyPuzzleBase(input)
 {
-    public override string GetPuzzleOneSolution()
+    public override string GetPuzzleOneSolution() => GetAreaSize(false).ToString();
+    public override string GetPuzzleTwoSolution() => GetAreaSize(true).ToString();
+
+    private long GetAreaSize(bool useDecodedInstructions)
     {
-        var digSteps = GetDigMap();
-        
-        var rightSum = digSteps.Where(s => s.Direction == Direction.Right).Sum(d => d.Length);
-        var downSum = digSteps.Where(s => s.Direction == Direction.BottomDown).Sum(d => d.Length);
-        var leftSum = digSteps.Where(s => s.Direction == Direction.Left).Sum(d => d.Length);
-        var upSum = digSteps.Where(s => s.Direction == Direction.TopUp).Sum(d => d.Length);
+        var digSteps = GetDigMap(useDecodedInstructions);
+        var trenches = GetTrenches(digSteps);
 
-        var width = rightSum + leftSum + 2;
-        var height = upSum + downSum + 2;
+        var minRow = trenches.Min(dtp => dtp.TopLeft.Row);
+        var maxRow = trenches.Max(dtp => dtp.BottomRight.Row);
+        var minCol = trenches.Min(dtp => dtp.TopLeft.Col);
+        var maxCol = trenches.Max(dtp => dtp.BottomRight.Col);
 
-        var holeMap = new List<List<bool>>();
-        for (int row = 0; row < height; row++)
+        bool IsTrench(List<Trench> trenchList, int r, int c) => trenchList.Any(t => t.Contains(r, c));
+
+        long capacity = 0;
+        for (int row = minRow; row < maxRow + 1; row++)
         {
-            holeMap.Add(new List<bool>());
-            for (int col = 0; col < width; col++)
-                holeMap[row].Add(false);
-        }
-
-        var current = new Location(downSum, rightSum);
-        holeMap[current.Row][current.Col] = true;
-        for (var index = 0; index < digSteps.Count; index++)
-        {
-            var digStep = digSteps[index];
-            for (int i = 0; i < digStep.Length; i++)
-            {
-                current = Add(current, GetLocationDelta(digStep.Direction));
-                holeMap[current.Row][current.Col] = true;
-            }
-        }
-
-        for (int row = 0; row < height; row++)
-        {
-            Debug.WriteLine(string.Join("", holeMap[row].Select(h => h ? '#' : '.')));
-        }
-
-        var copy = holeMap.Select(t => t.ToList()).ToList();
-
-        for (int row = 0; row < holeMap.Count; row++)
-        {
-            var firstHoleIndex = holeMap[row].FindIndex(h => h);
-            var lastHoleIndex = holeMap[row].FindLastIndex(h => h);
-            
             bool topHole = false;
             bool bottomHole = false;
             bool dig = false;
 
-            if (firstHoleIndex > 0)
+            //var line = "";
+            var trenchesInCurrentRow = trenches.Where(t => t.TopLeft.Row <= row && row <= t.BottomRight.Row).ToList();
+            var trenchesAboveCurrentRow = trenches.Where(t => t.TopLeft.Row <= row - 1 && row - 1 <= t.BottomRight.Row).ToList();
+            var trenchesBelowCurrentRow = trenches.Where(t => t.TopLeft.Row <= row + 1 && row + 1 <= t.BottomRight.Row).ToList();
+
+            var subsequentTrenchCount = 0;
+            for (int col = minCol; col < maxCol + 1; col++)
             {
-                for (int col = firstHoleIndex; col < lastHoleIndex + 1; col++)
+                if (IsTrench(trenchesInCurrentRow, row, col))
                 {
-                    if (holeMap[row][col])
+                    var currentTrenches = trenchesInCurrentRow.Where(t => t.Contains(row, col)).ToList();
+
+                    if (currentTrenches.Count == 2)
+                        subsequentTrenchCount = 0;
+
+                    if (subsequentTrenchCount > 4)
                     {
-                        if (holeMap[row - 1][col] || holeMap[row + 1][col])
+                        var currentTrench = currentTrenches.Single();
+                        capacity += currentTrench.BottomRight.Col - col;
+                        //line += string.Join("", Enumerable.Repeat('#', currentTrench.BottomRight.Col - col));
+                        col = currentTrench.BottomRight.Col - 1;
+                        subsequentTrenchCount = 0;
+                    }
+                    else
+                    {
+                        subsequentTrenchCount++;
+
+                        var isRowAboveTrench = IsTrench(trenchesAboveCurrentRow, row - 1, col);
+                        var isRowBelowTrench = IsTrench(trenchesBelowCurrentRow, row + 1, col);
+                        if (isRowAboveTrench || isRowBelowTrench)
                         {
                             if (
-                                    (holeMap[row - 1][col] && holeMap[row + 1][col]) || 
-                                    (holeMap[row - 1][col] && bottomHole) || 
-                                    (topHole && holeMap[row + 1][col])
-                                )
+                                (isRowAboveTrench && isRowBelowTrench) ||
+                                (isRowAboveTrench && bottomHole) ||
+                                (topHole && isRowBelowTrench)
+                            )
                             {
-                                if(!holeMap[row][col + 1])
+                                if (!IsTrench(trenchesInCurrentRow, row, col + 1))
                                     dig = !dig;
                             }
 
-                            topHole = holeMap[row - 1][col];
-                            bottomHole = holeMap[row + 1][col];
+                            topHole = isRowAboveTrench;
+                            bottomHole = isRowBelowTrench;
                         }
+
+                        capacity++;
+                        //line += "#";
+                    }
+                }
+                else
+                {
+                    var minByTrenchCol = trenchesInCurrentRow.Where(t => col < t.TopLeft.Col).MinBy(t => t.TopLeft.Col);
+                    if (minByTrenchCol != null)
+                    {
+                        capacity += dig ? minByTrenchCol.TopLeft.Col - col : 0;
+                        //line += string.Join("", Enumerable.Repeat(dig ? '#' : '.', minByTrenchCol.TopLeft.Col - col));
+                        col = minByTrenchCol.TopLeft.Col - 1;
+                    }
+                    else
+                    {
+                        //line += string.Join("", Enumerable.Repeat('.', maxCol - col + 1));
+                        col = maxCol;
                     }
 
-                    if (dig)
-                        copy[row][col] = true;
+                    subsequentTrenchCount = 0;
                 }
             }
+
+            //Debug.WriteLine(line);
         }
 
-        return copy.Sum(r => r.Count(h => h)).ToString();
+        return capacity;
     }
 
-    public override string GetPuzzleTwoSolution()
+    private List<Trench> GetTrenches(List<DigStep> digSteps)
     {
-        var digSteps = GetDigMap(true);
-        return "";
+        var trenches = new List<Trench>();
+
+        var currentLocation = new Location(0, 0);
+        var previous = currentLocation;
+        foreach (var digStep in digSteps)
+        {
+            currentLocation = Add(currentLocation, GetLocationDelta(digStep.Direction, digStep.Length));
+            trenches.Add(new Trench(previous, currentLocation));
+            previous = currentLocation;
+        }
+
+        return trenches;
     }
 
     private List<DigStep> GetDigMap(bool useDecoded = false)
@@ -121,7 +145,7 @@ public class Day18(string input) : DailyPuzzleBase(input)
                 throw new ArgumentOutOfRangeException(nameof(directionCharacter), directionCharacter, null);
         }
     }
-    
+
     public enum Direction
     {
         TopUp,
@@ -136,6 +160,8 @@ public class Day18(string input) : DailyPuzzleBase(input)
     {
         public int Row { get; set; } = row;
         public int Col { get; set; } = col;
+
+        public override string ToString() => $"[{Row}, {col}]";
     }
 
     public class DigStep(Direction direction, int length)
@@ -144,20 +170,44 @@ public class Day18(string input) : DailyPuzzleBase(input)
         public int Length { get; set; } = length;
     }
 
-    private Location GetLocationDelta(Direction direction)
+    private Location GetLocationDelta(Direction direction, int distance = 1)
     {
         switch (direction)
         {
             case Direction.TopUp:
-                return new Location(-1, 0);
+                return new Location(-distance, 0);
             case Direction.BottomDown:
-                return new Location(+1, 0);
+                return new Location(+distance, 0);
             case Direction.Left:
-                return new Location(0, -1);
+                return new Location(0, -distance);
             case Direction.Right:
-                return new Location(0, +1);
+                return new Location(0, +distance);
             default:
                 throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
         }
+    }
+
+    public class Trench
+    {
+        public Trench(Location start, Location end)
+        {
+            Start = start;
+            End = end;
+            IsHorizontal = Start.Row == End.Row;
+            TopLeft = IsHorizontal ? (Start.Col < End.Col ? Start : End) : (Start.Row < End.Row ? Start : End);
+            BottomRight = TopLeft.Row == Start.Row && TopLeft.Col == Start.Col ? End : Start;
+        }
+
+        public Location Start { get; }
+        public Location End { get; }
+
+        public bool IsHorizontal { get; }
+
+        public Location TopLeft { get; }
+        public Location BottomRight { get; }
+
+        public override string ToString() => $"TL:{TopLeft}, BR:{BottomRight}";
+        public bool Contains(Location location) => Contains(location.Row, location.Col);
+        public bool Contains(int row, int col) => TopLeft.Row <= row && row <= BottomRight.Row && TopLeft.Col <= col && col <= BottomRight.Col;
     }
 }
