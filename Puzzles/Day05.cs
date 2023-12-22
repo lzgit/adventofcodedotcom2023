@@ -49,7 +49,7 @@ public class Day05(string input) : DailyPuzzleBase(input)
         var minStart = source.Min(r => r.Start);
         var maxEnd = source.Max(r => r.End);
 
-        //Exclusive End Border
+        //Exclusive Bottom Border
         var inclusiveStartBorders = new List<long>();
         inclusiveStartBorders.AddRange(target.Where(sr => sr.Start >= minStart && sr.Start <= maxEnd).Select(sr => sr.Start));
         inclusiveStartBorders.AddRange(target.Where(sr => sr.End >= minStart && sr.End <= maxEnd).Select(sr => sr.End + 1));
