@@ -7,13 +7,14 @@ public class Day23(string input) : DailyPuzzleBase(input)
     public override string GetPuzzleOneSolution()
     {
         var map = GetMap();
-        return GetMaxHikeLength(map, CreateMapVisitedMatrix(map), GetStartLocation(map), GetEndLocation(map), -1, false).ToString();
+        return GetMaxHikeLengthIterative(map, GetStartLocation(map), GetEndLocation(map), false).ToString();
+        //return GetMaxHikeLength(map, CreateMapVisitedMatrix(map), GetStartLocation(map), GetEndLocation(map), -1, false).ToString();
     }
 
     public override string GetPuzzleTwoSolution()
     {
         var map = GetMap();
-        return GetMaxHikeLength(map, CreateMapVisitedMatrix(map), GetStartLocation(map), GetEndLocation(map), -1, true).ToString();
+        return GetMaxHikeLengthIterative(map, GetStartLocation(map), GetEndLocation(map), true).ToString();
     }
 
     private static Location GetStartLocation(string[] map)
@@ -90,6 +91,85 @@ public class Day23(string input) : DailyPuzzleBase(input)
             return GetMaxHikeLength(map, mapVisitedMatrix, nextStepLocations.Single(), end, currentHikeLength, ignoreSlopes);
 
         return nextStepLocations.Max(l => GetMaxHikeLength(map, CloneMapVisitedMatrix(mapVisitedMatrix), l, end, currentHikeLength, ignoreSlopes));
+    }
+
+    private int GetMaxHikeLengthIterative(string[] map, Location start, Location end, bool ignoreSlopes)
+    {
+        var hikeLengths = new List<int>();
+
+        var hikes = new Queue<(Location, bool?[,], int)>();
+        hikes.Enqueue((start, CreateMapVisitedMatrix(map), 0));
+        //mapVisitedMatrix[start.Row, start.Col] = true;
+
+        while (hikes.TryDequeue(out var hike))
+        {
+            var currentLocation = hike.Item1;
+            var mapVisitedMatrix = hike.Item2;
+            var hikeLength = hike.Item3;
+
+            List<Location> nextStepLocations;
+            do
+            {
+                if (currentLocation == end)
+                    hikeLengths.Add(hikeLength);
+
+                nextStepLocations = NextStepLocations(map, mapVisitedMatrix, currentLocation, ignoreSlopes);
+                if (nextStepLocations.Any())
+                {
+                    currentLocation = nextStepLocations.First();
+                    mapVisitedMatrix[currentLocation.Row, currentLocation.Col] = true;
+                    hikeLength++;
+
+                    foreach (var branchLocation in nextStepLocations.Skip(1).ToList())
+                        hikes.Enqueue((branchLocation, CloneMapVisitedMatrix(mapVisitedMatrix), hikeLength));
+                }
+            } while (nextStepLocations.Any());
+        }
+
+        //Debug.WriteLine("");
+        //Debug.WriteLine(currentHikeLength);
+        //for (int r = 0; r < map.Length; r++)
+        //{
+        //    for (int c = 0; c < map.First().Length; c++)
+        //    {
+        //        Debug.Write(mapVisitedMatrix[r, c] == true ? 'O' : map[r][c]);
+        //    }
+        //    Debug.WriteLine("");
+        //}
+
+        return hikeLengths.Max();
+    }
+
+    private List<Location> NextStepLocations(string[] map, bool?[,] mapVisitedMatrix, Location currentLocation, bool ignoreSlopes)
+    {
+        var nextStepLocations = new List<Location>();
+        if (!ignoreSlopes && IsSlope(map, currentLocation))
+        {
+            var nextStepLocation = currentLocation.Move(SlopeDirections[map[currentLocation.Row][currentLocation.Col]]);
+            if (map[nextStepLocation.Row][nextStepLocation.Col] != '#')
+                nextStepLocations.Add(nextStepLocation);
+        }
+        else
+        {
+            foreach (var direction in Enum.GetValues<Direction>())
+            {
+                var nextStepLocation = currentLocation.Move(direction);
+                if (!IsOutOfBoundary(map, nextStepLocation))
+                {
+                    var nextStepValue = map[nextStepLocation.Row][nextStepLocation.Col];
+                    if (
+                        nextStepValue != '#' &&
+                        mapVisitedMatrix[nextStepLocation.Row, nextStepLocation.Col] != true &&
+                        (ignoreSlopes || !IsSlope(nextStepValue) || SlopeDirections[nextStepValue] == direction)
+                    )
+                    {
+                        nextStepLocations.Add(nextStepLocation);
+                    }
+                }
+            }
+        }
+
+        return nextStepLocations;
     }
 
     private string[] GetMap() => Input.Split(Environment.NewLine);
