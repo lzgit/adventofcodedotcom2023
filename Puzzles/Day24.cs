@@ -1,4 +1,6 @@
-﻿namespace Puzzles;
+﻿using Microsoft.Z3;
+
+namespace Puzzles;
 
 public class Day24(string input) : DailyPuzzleBase(input)
 {
@@ -36,7 +38,46 @@ public class Day24(string input) : DailyPuzzleBase(input)
 
     public override string GetPuzzleTwoSolution()
     {
-        return "";
+        var hails = GetHailstones();
+
+        var ctx = new Context();
+        var solver = ctx.MkSolver();
+
+        var x = ctx.MkIntConst("x");
+        var y = ctx.MkIntConst("y");
+        var z = ctx.MkIntConst("z");
+
+        var vx = ctx.MkIntConst("vx");
+        var vy = ctx.MkIntConst("vy");
+        var vz = ctx.MkIntConst("vz");
+
+        for (var i = 0; i < 3; i++)
+        {
+            var t = ctx.MkIntConst($"t{i}");
+            var hail = hails[i];
+
+            var px = ctx.MkInt(Convert.ToInt64(hail.Position.X));
+            var py = ctx.MkInt(Convert.ToInt64(hail.Position.Y));
+            var pz = ctx.MkInt(Convert.ToInt64(hail.Position.Z));
+
+            var pvx = ctx.MkInt(Convert.ToInt64(hail.Velocity.X));
+            var pvy = ctx.MkInt(Convert.ToInt64(hail.Velocity.Y));
+            var pvz = ctx.MkInt(Convert.ToInt64(hail.Velocity.Z));
+
+            solver.Add(t >= 0);
+            solver.Add(ctx.MkEq(ctx.MkAdd(x, ctx.MkMul(t, vx)), ctx.MkAdd(px, ctx.MkMul(t, pvx)))); // x + t * vx = px + t * pvx
+            solver.Add(ctx.MkEq(ctx.MkAdd(y, ctx.MkMul(t, vy)), ctx.MkAdd(py, ctx.MkMul(t, pvy)))); // y + t * vy = py + t * pvy
+            solver.Add(ctx.MkEq(ctx.MkAdd(z, ctx.MkMul(t, vz)), ctx.MkAdd(pz, ctx.MkMul(t, pvz)))); // z + t * vz = pz + t * pvz
+        }
+
+        solver.Check();
+        var model = solver.Model;
+
+        var rx = model.Eval(x);
+        var ry = model.Eval(y);
+        var rz = model.Eval(z);
+
+        return (Convert.ToInt64(rx.ToString()) + Convert.ToInt64(ry.ToString()) + Convert.ToInt64(rz.ToString())).ToString();
     }
 
     public List<HailStone> GetHailstones()
