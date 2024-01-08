@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace Puzzles;
+﻿namespace Puzzles;
 
 public class Day23(string input) : DailyPuzzleBase(input)
 {
@@ -14,8 +12,75 @@ public class Day23(string input) : DailyPuzzleBase(input)
     public override string GetPuzzleTwoSolution()
     {
         var map = GetMap();
-        return GetMaxHikeLengthIterative(map, GetStartLocation(map), GetEndLocation(map), true).ToString();
+
+        Dictionary<Location, Node> nodes = new();
+
+        for (int row = 0; row < map.Length; row++)
+            for (int col = 0; col < map.First().Length; col++)
+                if (map[row][col] != '#')
+                    nodes[new Location(row, col)] = new Node();
+
+        foreach (var node in nodes)
+        {
+            foreach (var neighbor in Enum.GetValues<Direction>().Select(d => node.Key.Move(d)))
+            {
+                if (nodes.TryGetValue(neighbor, out var otherNode))
+                {
+                    node.Value.Neighbors.Add(new Edge(otherNode, 1));
+                    otherNode.Neighbors.Add(new Edge(node.Value, 1));
+                }
+            }
+        }
+
+        foreach (var node in nodes.Values.Where(n => n.Neighbors.Count == 2))
+        {
+            var connectionA = node.Neighbors.First();
+            var connectionB = node.Neighbors.Last();
+
+            int totalLength = connectionA.Length + connectionB.Length;
+
+            connectionA.Other.Neighbors.RemoveWhere(c => c.Other == node);
+            connectionA.Other.Neighbors.Add(connectionB with { Length = totalLength });
+
+            connectionB.Other.Neighbors.RemoveWhere(c => c.Other == node);
+            connectionB.Other.Neighbors.Add(connectionA with { Length = totalLength });
+        }
+
+        int maxPath = 0;
+        var startNode = nodes[GetStartLocation(map)];
+        var endNode = nodes[GetEndLocation(map)];
+
+        HashSet<Node> visited = [startNode];
+        void Visit(Node node, int length)
+        {
+            if (node == endNode)
+            {
+                if (maxPath < length)
+                    maxPath = length;
+
+                return;
+            }
+
+            foreach (var next in node.Neighbors)
+            {
+                if (visited.Add(next.Other))
+                {
+                    Visit(next.Other, length + next.Length);
+                    visited.Remove(next.Other);
+                }
+            }
+        }
+        Visit(startNode, 0);
+        return maxPath.ToString();
     }
+
+    private class Node
+    {
+        public readonly HashSet<Edge> Neighbors = new();
+    }
+
+    private record struct Edge(Node Other, int Length);
+
 
     private static Location GetStartLocation(string[] map)
     {
