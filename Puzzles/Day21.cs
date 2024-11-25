@@ -38,6 +38,9 @@ public class Day21(string input) : DailyPuzzleBase(input)
 
     public override string GetPuzzleTwoSolution()
     {
+        if (string.IsNullOrEmpty(Input))
+            return string.Empty;
+
         //Note: From reddit
 
         var input = Input.Split(Environment.NewLine).ToList();
